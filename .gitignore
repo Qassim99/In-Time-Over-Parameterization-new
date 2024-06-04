@@ -1,3 +1,10 @@
 .venv
 __pycache__/
 _dataset
+cheng2020-anchor_graphic
+div2k_dataset*
+wandb/
+checkpoint*
+models/
+*.pdf
+kodak_dataset

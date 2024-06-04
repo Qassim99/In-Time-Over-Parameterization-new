@@ -541,6 +541,9 @@ class Masking(object):
         return grad
 
     def get_gradient_for_weights(self, weight):
+        if weight.grad is None:
+            print(f"Warning: Gradient for weight {weight} is None.")
+        #     return torch.zeros_like(weight)
         grad = weight.grad.clone()
         return grad
 
