@@ -360,6 +360,8 @@ class Masking(object):
 
                 elif self.growth_mode == 'gradient':
                     new_mask = self.gradient_growth(name, new_mask, weight)
+                    if new_mask is None:
+                        continue
 
                 new_nonzero = new_mask.sum().item()
 
@@ -491,6 +493,8 @@ class Masking(object):
     def gradient_growth(self, name, new_mask, weight):
         total_regrowth = self.num_remove[name]
         grad = self.get_gradient_for_weights(weight)
+        if grad is None:
+            return None
         grad = grad*(new_mask==0).float()
 
         y, idx = torch.sort(torch.abs(grad).flatten(), descending=True)
@@ -542,8 +546,9 @@ class Masking(object):
 
     def get_gradient_for_weights(self, weight):
         if weight.grad is None:
-            print(f"Warning: Gradient for weight {weight} is None.")
-        #     return torch.zeros_like(weight)
+        #     print(f"Warning: Gradient for weight {weight} is None.")
+        # #     return torch.zeros_like(weight)
+            return None
         grad = weight.grad.clone()
         return grad
 

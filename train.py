@@ -284,25 +284,61 @@ def parse_args(argv):
     return args
 
 
+def count_nonzero_params(model):
+    nonzero_params = sum(p.nonzero().size(0) for p in model.parameters() if p.requires_grad)
+    return nonzero_params
 
 def main(argv):
     args = parse_args(argv)
 
-    project_name = 'training ' + args.model + ' on ' + 'DIV2K'
+    args_copy = copy.deepcopy(args)
+    # copy to get a clean hash
+    # use the same log file hash if iterations or verbose are different
+    # these flags do not change the results
+    args_copy.iters = 1
+    args_copy.verbose = False
+    args_copy.log_interval = 1
+    args_copy.seed = 0
+
+    dataset_name = args.dataset.split('/')[-2]
+    
+    project_name = f'check_criteria_{args.model}_{dataset_name}_epochs{args.epochs}_lr{args.learning_rate}' 
+
+    # Generate a unique run name based on your specific needs
     if args.sparse:
-        project_name += ' with density ' + str(args.density) + 'prune critiria ' + args.death 
+        run_name = f"{args.death}_{args.growth}_{args.update_frequency}_{args.density}"
+    else:
+        run_name = "dense"
+
     wandb.init(
         # set the wandb project where this run will be logged
         project=project_name,
+        name=run_name,  # Add the run name here
 
         # track hyperparameters and run metadata
         config={
         "learning_rate": args.learning_rate,
         "architecture": args.model,
-        "dataset": args.dataset,
+        "dataset": dataset_name,
         "epochs": args.epochs,
+        "batch_size": args.batch_size,
+        "aux_learning_rate": args.aux_learning_rate,
+        "patch_size": args.patch_size,
+        "clip_max_norm": args.clip_max_norm,
+        "seed": args.seed,
+        "cuda": args.cuda,
+        "num_workers": args.num_workers,
         }
     )
+
+
+    wandb.config.update({
+        "pytorch_version": torch.__version__,
+        "cuda_available": torch.cuda.is_available(),
+        "cuda_version": torch.version.cuda if torch.cuda.is_available() else "N/A",
+        "device_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU",
+    })
+
 
     if args.seed is not None:
         torch.manual_seed(args.seed)
@@ -339,7 +375,9 @@ def main(argv):
 
     net = image_models[args.model](pretrained=False, quality=3)
     net = net.to(device)
-
+    print('='*80)
+    print(net)
+    print('='*80)
     if args.cuda and torch.cuda.device_count() > 1:
         net = CustomDataParallel(net)
 
@@ -366,6 +404,8 @@ def main(argv):
 
     # Reinitialize the optimizer after pruning
     optimizer, aux_optimizer = reinitialize_optimizer(net, args)
+
+
 
 
     epochs_own = []
@@ -398,7 +438,12 @@ def main(argv):
             if not os.path.exists(model_dir):
                 os.makedirs(model_dir)
 
-        model_path = os.path.join(model_dir, "model.pth")
+        # Generate a dynamic model name based on arguments
+        if args.sparse:
+            model_name = f"{args.model}_dense{args.density}_{epoch}_{hashlib.md5(str(args_copy).encode('utf-8')).hexdigest()[:8]}.pth"
+        else:
+            model_name = f"{args.model}_dense_1.0_{epoch}_{hashlib.md5(str(args_copy).encode('utf-8')).hexdigest()[:8]}.pth"
+        model_path = os.path.join(model_dir, model_name)
         torch.save(net.state_dict(), model_path)
 
         if args.save:
@@ -421,16 +466,17 @@ def main(argv):
 
         wandb.log({"loss": loss, "mes": mse, "bpp": bpp, "aux": aux})
 
+    print('Testing model')
+    layer_fired_weights, total_fired_weights = mask.fired_masks_update()
+    for name in layer_fired_weights:
+        print('The final percentage of fired weights in the layer', name, 'is:', layer_fired_weights[name])
+    print('The final percentage of the total fired weights is:', total_fired_weights)
+    
+    nonzero_params = count_nonzero_params(net)
+    print('Nonzero parameters: {}'.format(nonzero_params))
+    wandb.log({"nonzero_params": nonzero_params})
     wandb.finish()
-
-    args_copy = copy.deepcopy(args)
-    # copy to get a clean hash
-    # use the same log file hash if iterations or verbose are different
-    # these flags do not change the results
-    args_copy.iters = 1
-    args_copy.verbose = False
-    args_copy.log_interval = 1
-    args_copy.seed = 0
+    
 
     savefile_dir = os.path.join(".", args.model + "_graphic")
     if not os.path.exists(savefile_dir):

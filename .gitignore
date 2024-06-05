@@ -8,3 +8,4 @@ checkpoint*
 models/
 *.pdf
 kodak_dataset
+logs/
