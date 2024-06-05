@@ -406,8 +406,6 @@ def main(argv):
     optimizer, aux_optimizer = reinitialize_optimizer(net, args)
 
 
-
-    model_name = f"{args.model}_{epoch}_R{hashlib.md5(str(args_copy).encode('utf-8')).hexdigest()[:8]}"
     epochs_own = []
     losses_own = []
     mse_losses_own = []
@@ -440,9 +438,9 @@ def main(argv):
 
         # Generate a dynamic model name based on arguments
         if args.sparse:
-            model_name += f"_dense_{args.density}.pth"
+            model_name = f"{args.model}_dense_{args.density}_{args.death}_{args.growth}_lr{args.learning_rate}_{args.update_frequency}_{epoch}.pth"
         else:
-            model_name += f"_dense_1.0.pth"
+            model_name = f"{args.model}_dense_1.0_{args.death}_{args.growth}_lr{args.learning_rate}_{args.update_frequency}_{epoch}.pth"
         model_path = os.path.join(model_dir, model_name)
         torch.save(net.state_dict(), model_path)
 
