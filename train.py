@@ -438,9 +438,9 @@ def main(argv):
 
         # Generate a dynamic model name based on arguments
         if args.sparse:
-            model_name = f"{args.model}_dense_{args.density}_{args.death}_{args.growth}_lr{args.learning_rate}_{args.update_frequency}_{epoch}.pth"
+            model_name = f"{args.model}_dense_{args.density}_epochs{args.epochs}_{args.death}_{args.growth}_lr{args.learning_rate}_{args.update_frequency}_{epoch}.pth"
         else:
-            model_name = f"{args.model}_dense_1.0_{args.death}_{args.growth}_lr{args.learning_rate}_{args.update_frequency}_{epoch}.pth"
+            model_name = f"{args.model}_dense_1.0_epochs{args.epochs}_lr{args.learning_rate}_{epoch}.pth"
         model_path = os.path.join(model_dir, model_name)
         torch.save(net.state_dict(), model_path)
 
