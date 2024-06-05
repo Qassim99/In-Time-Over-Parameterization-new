@@ -302,7 +302,7 @@ def main(argv):
 
     dataset_name = args.dataset.split('/')[-2]
     
-    project_name = f'check_criteria_{args.model}_{dataset_name}_epochs{args.epochs}_lr{args.learning_rate}' 
+    project_name = f'{args.density}_{args.model}_{dataset_name}_epochs{args.epochs}_lr{args.learning_rate}' 
 
     # Generate a unique run name based on your specific needs
     if args.sparse:
@@ -437,12 +437,12 @@ def main(argv):
                 os.makedirs(model_dir)
 
         # Generate a dynamic model name based on arguments
-        if args.sparse:
-            model_name = f"{args.model}_dense_{args.density}_epochs{args.epochs}_{args.death}_{args.growth}_lr{args.learning_rate}_{args.update_frequency}_{epoch}.pth"
-        else:
-            model_name = f"{args.model}_dense_1.0_epochs{args.epochs}_lr{args.learning_rate}_{epoch}.pth"
-        model_path = os.path.join(model_dir, model_name)
-        torch.save(net.state_dict(), model_path)
+            if args.sparse:
+                model_name = f"{args.model}_dense_{args.density}_epochs{args.epochs}_{args.death}_{args.growth}_lr{args.learning_rate}_{args.update_frequency}.pth"
+            else:
+                model_name = f"{args.model}_dense_1.0_epochs{args.epochs}_lr{args.learning_rate}.pth"
+            model_path = os.path.join(model_dir, model_name)
+            torch.save(net.state_dict(), model_path)
 
         if args.save:
             save_checkpoint(
