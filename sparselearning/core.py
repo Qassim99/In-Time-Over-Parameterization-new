@@ -226,6 +226,8 @@ class Masking(object):
     def add_module(self, module, density, sparse_init='ER'):
         self.modules.append(module)
         for name, tensor in module.named_parameters():
+            if 'entropy_bottleneck.quantiles' in name:
+                continue
             self.names.append(name)
             self.masks[name] = torch.zeros_like(tensor, dtype=torch.float32, requires_grad=False).cuda()
 
@@ -334,8 +336,12 @@ class Masking(object):
                     new_mask = self.magnitude_and_negativity_death(mask, weight, name)
                 elif self.death_mode == 'Taylor_FO':
                     new_mask = self.taylor_FO(mask, weight, name)
+                    if new_mask is None:
+                        continue
                 elif self.death_mode == 'Taylor_SO':
                     new_mask = self.taylor_SO(mask, weight, name)
+                    if new_mask is None:
+                        continue
                 elif self.death_mode == 'threshold':
                     new_mask = self.threshold_death(mask, weight, name)
 
@@ -384,7 +390,8 @@ class Masking(object):
         num_remove = math.ceil(self.death_rate * self.name2nonzeros[name])
         num_zeros = self.name2zeros[name]
         k = math.ceil(num_zeros + num_remove)
-
+        if weight.grad is None:
+            return None
         x, idx = torch.sort((weight.data * weight.grad).pow(2).flatten())
         mask.data.view(-1)[idx[:k]] = 0.0
 
@@ -394,7 +401,8 @@ class Masking(object):
         num_remove = math.ceil(self.death_rate * self.name2nonzeros[name])
         num_zeros = self.name2zeros[name]
         k = math.ceil(num_zeros + num_remove)
-
+        if weight.grad is None:
+            return None
         hessian_approx = weight.grad ** 2  # Diagonal approximation
         importance_score = (weight.data * weight.grad - 0.5 * weight.data ** 2 * hessian_approx).abs()
         x, idx = torch.sort(importance_score.flatten())
